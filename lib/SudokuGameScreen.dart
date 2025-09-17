@@ -1,13 +1,30 @@
   import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-
+import './HomeScreen.dart';
+import './main.dart';
+enum Difficulty { easy, medium, hard }
 class SudokuGameScreen extends StatefulWidget {
   const SudokuGameScreen({super.key});
 
   @override
   _SudokuGameScreenState createState() => _SudokuGameScreenState();
 }
+  class _StatRow extends StatelessWidget {
+    final String label;
+    final String value;
+    const _StatRow({required this.label, required this.value});
+
+    @override
+    Widget build(BuildContext context) {
+      return Row(
+        children: [
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ],
+      );
+    }
+  }
 
 class _SudokuGameScreenState extends State<SudokuGameScreen> {
   // Boards
@@ -45,6 +62,12 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
 
   bool _sameBlock(int r1, int c1, int r2, int c2) =>
       (r1 ~/ 3 == r2 ~/ 3) && (c1 ~/ 3 == c2 ~/ 3);
+  int _score = 0;
+  int _streak = 0;         // correct-in-a-row streak
+  int _wrongMoves = 0;
+  int _hintsUsed = 0;      // if you add a Hint feature
+  DateTime? _lastCorrectAt; // for speed bonus if you want
+  Difficulty _difficulty = Difficulty.easy; // default
 
   @override
   void initState() {
@@ -55,7 +78,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
 
     // 2) Make a deep copy into the playable grid and remove numbers.
     _sudokuGrid = _deepCopy(permenentSudokuGrid);
-    _removeNumbers(_sudokuGrid, cluesCount: 50);
+    _removeNumbers(_sudokuGrid, cluesCount: 80);
 
     // 3) Mark "givens" so we can prevent editing.
     _isGiven = List.generate(
@@ -197,8 +220,216 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     Navigator.of(context).pop();           // close the dialog
     // _resumeGame();                         // continue playing
   }
+  double get _diffMult {
+    switch (_difficulty) {
+      case Difficulty.easy:   return 1.0;
+      case Difficulty.medium: return 1.5;
+      case Difficulty.hard:   return 2.0;
+    }
+  }
+  void _applyCorrectMoveScore() {
+    // Base points per correct cell
+    int base = 50;
+
+    // Streak bonus: +20 per streak step, capped at +100
+    int streakBonus = (20 * _streak).clamp(0, 100);
+
+    // Optional speed bonus if last correct was within 8 seconds
+    int speedBonus = 0;
+    if (_lastCorrectAt != null) {
+      final dt = DateTime.now().difference(_lastCorrectAt!);
+      if (dt.inSeconds <= 8) speedBonus = 10;
+    }
+
+    int gained = ((base + streakBonus + speedBonus) * _diffMult).round();
+
+    setState(() {
+      _score += gained;
+      _streak += 1;
+      _lastCorrectAt = DateTime.now();
+    });
+  }
+  void _applyWrongMovePenalty() {
+    // Penalty for a wrong entry
+    int penalty = (25 * _diffMult).round();
+
+    setState(() {
+      _score = (_score - penalty).clamp(0, 1 << 31);
+      _streak = 0;
+      _wrongMoves += 1;
+    });
+  }
+  void _applyHintPenalty() {
+    int penalty = (50 * _diffMult).round();
+    setState(() {
+      _score = (_score - penalty).clamp(0, 1 << 31);
+      _hintsUsed += 1;
+      _streak = 0;
+    });
+  }
+  bool _isBoardComplete() {
+    for (var row in _sudokuGrid) {
+      for (var v in row) {
+        if (v == 0) return false;
+      }
+    }
+    return true;
+  }
+  _goToMainMenu(){
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) =>  HomeScreen()),
+          (route) => false, // clear back stack
+    );
+  }
+  void _applyCompletionBonusAndShowWin() {
+    // Time bonus: up to 10 minutes (600s). Faster = more points.
+    int timeBonus = (600 - _elapsedSeconds).clamp(0, 600); // 0..600
+    // Lives bonus: reward remaining chances
+    int livesBonus = _remainingChances * 100;
+    // Clean play bonus: fewer wrong moves = better
+    int cleanBonus = (200 - (20 * _wrongMoves)).clamp(0, 200);
+    // Base completion
+    int base = 500;
+
+    int gained = ((base + timeBonus + livesBonus + cleanBonus) * _diffMult).round();
+
+    setState(() {
+      _score += gained;
+    });
+
+    // Show a simple win dialog
+    // showDialog(
+    //   context: context,
+    //   barrierDismissible: false,
+    //   builder: (_) => AlertDialog(
+    //     title: const Text('You Win!'),
+    //     content: Text(
+    //       'Final Score: $_score\n'
+    //           'Time: $_formattedTime\n'
+    //           'Wrong Moves: $_wrongMoves\n'
+    //           'Hints Used: $_hintsUsed',
+    //     ),
+    //     actions: [
+    //       TextButton(
+    //         onPressed: () {
+    //           Navigator.of(context).pop();
+    //           // _startNewGame(); // implement to start a new puzzle
+    //         },
+    //         child: const Text('New Game'),
+    //       ),
+    //     ],
+    //   ),
+    // );
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: const EdgeInsets.only(top: 16, left: 20, right: 20),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+        title: Row(
+          children: const [
+            Icon(Icons.emoji_events, size: 28, color: Colors.amber),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'You Win!',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StatRow(label: 'Final Score', value: '$_score'),
+            const SizedBox(height: 6),
+            _StatRow(label: 'Time', value: _formattedTime),
+            const SizedBox(height: 6),
+            _StatRow(label: 'Wrong Moves', value: '$_wrongMoves'),
+            const SizedBox(height: 6),
+            _StatRow(label: 'Hints Used', value: '$_hintsUsed'),
+          ],
+        ),
+        actions: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FractionallySizedBox(
+                widthFactor: 0.9,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    // _startNewGame(); // implement your new puzzle
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('New Game', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FractionallySizedBox(
+                widthFactor: 0.9,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    // _replaySamePuzzle(); // reset the SAME board to initial state
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Replay Board', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FractionallySizedBox(
+                widthFactor: 0.9,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _goToMainMenu(); // optional: navigate to your menu screen
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.grey.shade300,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Main Menu', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+  }
+
+
+
+
 
   // ====== UI ======
+
+
+
+
 
 // Show Game Over dialog
   void showGameOverDialog() {
@@ -239,7 +470,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                   FractionallySizedBox(
                     widthFactor: 0.9, // 80% of parent width
                     child: TextButton(
-                      onPressed: () =>_grantExtraChancesAndResume(3),
+                      onPressed: () =>_grantExtraChancesAndResume(4),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.grey.shade400,
                         foregroundColor: Colors.blue,
@@ -348,10 +579,8 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text("Easy", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text(
-                      _formattedTime, // Display the timer here
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
+                    Text("Score: $_score", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(_formattedTime, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -571,9 +800,17 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                   _isLocked[r][c] = true; // Lock the cell after a valid number
                   _conflictCells.clear(); // Clear any conflict highlights
                 });
+
+                _applyCorrectMoveScore();
+
+                // Check completion
+                if (_isBoardComplete()) {
+                  _applyCompletionBonusAndShowWin();
+                }
               } else {
                 // Incorrect number
                 useChance();
+                _applyWrongMovePenalty();
                 setState(() {
                   _highlightConflicts(r, c, num); // Highlight all conflicts
                 });

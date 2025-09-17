@@ -1,4 +1,4 @@
-package com.example.sudoku_puzzle_pro
+package com.example.sudoku_x_pert
 
 import io.flutter.embedding.android.FlutterActivity
 

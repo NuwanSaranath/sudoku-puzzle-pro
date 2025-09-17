@@ -1,4 +1,4 @@
-name: sudoku_puzzle_pro
+name: sudoku_x_pert
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -31,8 +31,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  firebase_core: 4.0.0
+  firebase_auth: 6.0.1
+  cloud_firestore: 6.0.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
