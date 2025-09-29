@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import './HomeScreen.dart';
 import './main.dart';
+import './saveScore.dart';
 enum Difficulty { easy, medium, hard }
 class SudokuGameScreen extends StatefulWidget {
   const SudokuGameScreen({super.key});
@@ -282,8 +283,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
           (route) => false, // clear back stack
     );
   }
-  void _applyCompletionBonusAndShowWin() {
-    // Time bonus: up to 10 minutes (600s). Faster = more points.
+  void _applyCompletionBonusAndShowWin() {    // Time bonus: up to 10 minutes (600s). Faster = more points.
     int timeBonus = (600 - _elapsedSeconds).clamp(0, 600); // 0..600
     // Lives bonus: reward remaining chances
     int livesBonus = _remainingChances * 100;
@@ -301,7 +301,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     // Show a simple win dialog
     // showDialog(
     //   context: context,
-    //   barrierDismissible: false,
+    //   barrierDismissible: false
     //   builder: (_) => AlertDialog(
     //     title: const Text('You Win!'),
     //     content: Text(
@@ -321,6 +321,8 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     //     ],
     //   ),
     // );
+    // submitHighScore(score: _score,timeMs: _elapsedSeconds);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -849,3 +851,4 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
   }
 
 }
+

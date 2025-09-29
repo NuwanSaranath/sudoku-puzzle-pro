@@ -7,6 +7,8 @@ import './SudokuGameScreen.dart';
 import './HomeScreen.dart';
 import './MenuButton.dart';
 import './RegisterScreen.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 
 Future<void> main() async {
@@ -19,6 +21,7 @@ Future<void> main() async {
     // Firebase is already initialized, ignore
     print('Firebase is already initialized');
   }
+  await Hive.initFlutter();
   runApp(const SudokuApp());
 }
 
