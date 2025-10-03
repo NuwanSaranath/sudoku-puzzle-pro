@@ -1,4 +1,5 @@
 import 'dart:ui' show FontFeature;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
@@ -25,6 +26,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool hasSavedGame = false;
   int localHighScore = 0;
+  int fast = 0;
+  int best = 0;
+  bool isOnlien = false;
+  bool isStatic = true;
   // local-region detection
   String? _regionField; // 'country' or 'location'
   String? _regionValue; // e.g. 'LK' or 'United States'
@@ -38,6 +43,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_uid != null) {
       _meStream = FirebaseFirestore.instance.collection('users').doc(_uid!).snapshots();
+
+      print("_meStream");
+      _meStream!.listen(
+            (snap) {
+
+          final data = snap.data();
+          print(data?["location"]);
+          debugPrint('meStream doc id: ${snap.id}, exists: ${snap.exists}');
+          debugPrint('meStream data: $data'); // full map
+          debugPrint('AUTH uid=${FirebaseAuth.instance.currentUser?.uid}');
+          debugPrint('STREAM path=users/$_uid');
+          debugPrint('name: ${data?['name']}'); // example single field
+        },
+        onError: (e) => debugPrint('meStream error: $e'),
+      );
       _loadRegionFromMyDoc();
     }
 
@@ -51,11 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       _loadRegionFromMyDoc();
     });
-    loadHighScore();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadHighScore();
+    });
+    // loadHighScore();
   }
   Future<void> loadHighScore() async {
-    localHighScore  = await getLocalHighScore(); // Hive function
-    setState(() {}); // trigger rebuild
+    best  = await getLocalHighScore(); // Hive function
+    // setState(() {}); // trigger rebuild
   }
   Future<int> getLocalHighScore() async {
     var box = await Hive.openBox('highScores');
@@ -70,15 +93,15 @@ class _HomeScreenState extends State<HomeScreen> {
     // Prefer 'country' if present; else use 'location'
     final location = (d['location'] as String?)?.trim();
 
-    setState(() {
-       if (location != null && location.isNotEmpty) {
-        _regionField = 'location';
-        _regionValue = location;
-      } else {
-        _regionField = null;
-        _regionValue = null;
-      }
-    });
+    // setState(() {
+    //    if (location != null && location.isNotEmpty) {
+    //     _regionField = 'location';
+    //     _regionValue = location;
+    //   } else {
+    //     _regionField = null;
+    //     _regionValue = null;
+    //   }
+    // });
   }
 
   // ====== FORMAT HELPERS ======
@@ -141,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _top10Stream(bool local) {
+    _regionField="location";
     final users = FirebaseFirestore.instance.collection('users');
     final q = (local && _regionField != null && _regionValue != null)
         ? users.where(_regionField!, isEqualTo: _regionValue)
@@ -165,6 +189,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildProfileUi() {
+    setState(() {
+
+    });
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final text = theme.textTheme;
@@ -267,6 +294,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildHomeScreenBody() {
+    setState(() {
+
+    });
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
@@ -333,14 +363,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildStatisticsUi() {
+  Future<bool> isConnected() async {
+    List<ConnectivityResult> results = await Connectivity().checkConnectivity();
+    ConnectivityResult result = results.isNotEmpty ? results.first : ConnectivityResult.none;
+    return result == ConnectivityResult.mobile || result == ConnectivityResult.wifi;
+  }
+
+  Future<int> rankByScoreOnly({bool local = false}) async {
+    print("rankByScoreOnly");
+    print(local);
+    isOnlien = await isConnected();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 0;
+
+    final users = FirebaseFirestore.instance.collection('users');
+
+    // my score (and region)
+    final me = await users.doc(uid).get();
+    final d = me.data() ?? {};
+    final myScore = _asInt(d['bestScore'], 0);
+    Query<Map<String, dynamic>> q = users;
+    final db = FirebaseFirestore.instance;
+    if (await isConnected()) {
+      if (local) {
+        final agg = await db
+            .collection('users')
+            .where('location', isEqualTo: d['location'])
+            .where('bestScore', isGreaterThan: myScore)
+            .count()
+            .get();
+        print("local");
+        print(agg.count);
+
+        return (agg.count ?? 0) + 1;
+      } else {
+        final agg = await db
+            .collection('users')
+            .where('bestScore', isGreaterThan: myScore)
+            .count()
+            .get();
+        print("global");
+        print(agg.count);
+        return (agg.count ?? 0) + 1;
+      }
+    } else {
+      return 0;
+    }
+  }
+
+    Widget buildStatisticsUi() {
+    print("############# buildStatisticsUi");
     loadHighScore();
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     const gap = 12.0;
     final local = (selectedTab == 0);
 
-    final top10Stream = _top10Stream(local);
 
     return Scaffold(
       body: SafeArea(
@@ -385,9 +463,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: _meStream,
                     builder: (context, snap) {
-                      final d = snap.data?.data() ?? {};
-                      final best = _asInt(d['bestScore'], 0);
-                      final fast = _asInt(d['fastestTimeMs'], 1 << 30);
+
+                      if( isOnlien){
+                        final d = snap.data?.data() ?? {};
+                        if(best>_asInt(d['bestScore'], 0)){
+                          submitBestResult(score: best,timeMs: fast);
+                        }else{
+                          best = _asInt(d['bestScore'], 0);
+                          fast = _asInt(d['fastestTimeMs'], 1 << 30);
+                        }
+
+                      }
+
 
                       return LayoutBuilder(
                         builder: (context, constraints) {
@@ -454,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- Top 10 list ---
                   Expanded(
                     child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: top10Stream,
+                      stream: _top10Stream(local),
                       builder: (context, snap) {
                         if (snap.connectionState == ConnectionState.waiting) {
                           return const Center(child: CircularProgressIndicator());
@@ -485,17 +572,42 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+
   }
 
   @override
   Widget build(BuildContext context) {
+    // Only build widgets when needed
+    if (_widgetOptions[_selectedIndex] == null) {
+      switch (_selectedIndex) {
+        case 0:
+          isStatic=true;
+          // _widgetOptions[_selectedIndex] ;
+          break;
+        case 1:
+          print("isStatic");
+        print(isStatic);
+          if(isStatic==true){
+            isStatic=false;
+            print("isStatic 2");
+            print(isStatic);
+            _widgetOptions[_selectedIndex] ;
+          }
+          break;
+        case 2:
+          isStatic=true;
+          // _widgetOptions[_selectedIndex] ;
+          break;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sudoku Xpert'),
         backgroundColor: Colors.blue,
         actions: [IconButton(icon: const Icon(Icons.settings), onPressed: () {})],
       ),
-      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
+      body: _widgetOptions[_selectedIndex]!, // Use the cached widget
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -585,40 +697,6 @@ int _asInt(dynamic v, int fb) {
   if (v is String) return int.tryParse(v) ?? fb;
   return fb;
 }
-Future<int> rankByScoreOnly({bool local = false}) async {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return 0;
 
-  final users = FirebaseFirestore.instance.collection('users');
-
-  // my score (and region)
-  final me = await users.doc(uid).get();
-  final d = me.data() ?? {};
-  final myScore = _asInt(d['bestScore'], 0);
-print("rankByScoreOnly");
-  Query<Map<String, dynamic>> q = users;
-  final db = FirebaseFirestore.instance;
-  if(await isConnected()){
-    if (local) {
-      final agg = await db
-          .collection('users')
-          .where('location', isEqualTo: d['location'])
-          .where('bestScore', isGreaterThan: myScore)
-          .count()
-          .get();
-      return (agg.count ?? 0) + 1;
-    }else{
-      final agg = await db
-          .collection('users')
-          .where('bestScore', isGreaterThan: myScore)
-          .count()
-          .get();
-      return (agg.count ?? 0) + 1;
-    }
-  }else{
-    return 0 ;
-  }
-
-}
 
 

@@ -1,31 +1,37 @@
-  import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import './HomeScreen.dart';
-import './main.dart';
 import './saveScore.dart';
+
 enum Difficulty { easy, medium, hard }
+
 class SudokuGameScreen extends StatefulWidget {
   const SudokuGameScreen({super.key});
 
   @override
   _SudokuGameScreenState createState() => _SudokuGameScreenState();
 }
-  class _StatRow extends StatelessWidget {
-    final String label;
-    final String value;
-    const _StatRow({required this.label, required this.value});
 
-    @override
-    Widget build(BuildContext context) {
-      return Row(
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ],
-      );
-    }
+class _StatRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _StatRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
   }
+}
 
 class _SudokuGameScreenState extends State<SudokuGameScreen> {
   // Boards
@@ -47,15 +53,14 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
 
   // Colors
   static const Color kBoardBg = Color(0xFFF5F5F5);
-  static const Color kBlockBorder = Color(0xFFBDBDBD);
   static const Color kCellBg = Colors.white;
-  static const Color kSelected = Color(0xFFBBDEFB); // clicked cell
-  static const Color kHighlight = Color(0xFFE3F2FD); // row/col/block
-  static const Color kErrorBg = Color(0x33D32F2F); // translucent red
+  static const Color kSelected = Color(0xFFBBDEFB);
+  static const Color kHighlight = Color(0xFFE3F2FD);
+  static const Color kErrorBg = Color(0x33D32F2F);
   static const Color kGivenText = Color(0xFF1A237E);
   static const Color kUserText = Color(0xFF1565C0);
-  int _remainingChances = 3; // Initially, the user has 3 chances
-  double _progressValue = 1.0; // Full bar initially (3/3 chances)
+  int _remainingChances = 3;
+  double _progressValue = 1.0;
   late Timer _timer;
   int _elapsedSeconds = 0;
 
@@ -64,9 +69,9 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
   bool _sameBlock(int r1, int c1, int r2, int c2) =>
       (r1 ~/ 3 == r2 ~/ 3) && (c1 ~/ 3 == c2 ~/ 3);
   int _score = 0;
-  int _streak = 0;         // correct-in-a-row streak
+  int _streak = 0; // correct-in-a-row streak
   int _wrongMoves = 0;
-  int _hintsUsed = 0;      // if you add a Hint feature
+  int _hintsUsed = 0; // if you add a Hint feature
   DateTime? _lastCorrectAt; // for speed bonus if you want
   Difficulty _difficulty = Difficulty.easy; // default
 
@@ -79,11 +84,13 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
 
     // 2) Make a deep copy into the playable grid and remove numbers.
     _sudokuGrid = _deepCopy(permenentSudokuGrid);
-    _removeNumbers(_sudokuGrid, cluesCount: 80);
+    _removeNumbers(_sudokuGrid, cluesCount: 70);
 
     // 3) Mark "givens" so we can prevent editing.
     _isGiven = List.generate(
-        9, (i) => List.generate(9, (j) => _sudokuGrid[i][j] != 0));
+      9,
+      (i) => List.generate(9, (j) => _sudokuGrid[i][j] != 0),
+    );
 
     // 4) Initialize locked cells (starting all as false)
     _isLocked = List.generate(9, (i) => List.filled(9, false));
@@ -105,8 +112,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     for (int row = 0; row < 9; row++) {
       for (int col = 0; col < 9; col++) {
         if (grid[row][col] == 0) {
-          final numbers = List.generate(9, (i) => i + 1)
-            ..shuffle();
+          final numbers = List.generate(9, (i) => i + 1)..shuffle();
           for (final num in numbers) {
             if (_isValid(grid, row, col, num)) {
               grid[row][col] = num;
@@ -192,7 +198,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
         _progressValue =
             _remainingChances / 3; // Update progress based on remaining chances
       });
-    }else{
+    } else {
       showGameOverDialog();
     }
   }
@@ -212,22 +218,29 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     int seconds = _elapsedSeconds % 60;
     return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
   }
+
   void _resumeGame() {
     // Unpause timers, re-enable input, etc.
   }
+
   void _grantExtraChancesAndResume(int n) {
     setState(() => _remainingChances += n);
     useChance();
-    Navigator.of(context).pop();           // close the dialog
+    Navigator.of(context).pop(); // close the dialog
     // _resumeGame();                         // continue playing
   }
+
   double get _diffMult {
     switch (_difficulty) {
-      case Difficulty.easy:   return 1.0;
-      case Difficulty.medium: return 1.5;
-      case Difficulty.hard:   return 2.0;
+      case Difficulty.easy:
+        return 1.0;
+      case Difficulty.medium:
+        return 1.5;
+      case Difficulty.hard:
+        return 2.0;
     }
   }
+
   void _applyCorrectMoveScore() {
     // Base points per correct cell
     int base = 50;
@@ -250,6 +263,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
       _lastCorrectAt = DateTime.now();
     });
   }
+
   void _applyWrongMovePenalty() {
     // Penalty for a wrong entry
     int penalty = (25 * _diffMult).round();
@@ -260,6 +274,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
       _wrongMoves += 1;
     });
   }
+
   void _applyHintPenalty() {
     int penalty = (50 * _diffMult).round();
     setState(() {
@@ -268,6 +283,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
       _streak = 0;
     });
   }
+
   bool _isBoardComplete() {
     for (var row in _sudokuGrid) {
       for (var v in row) {
@@ -276,14 +292,17 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     }
     return true;
   }
-  _goToMainMenu(){
+
+  _goToMainMenu() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) =>  HomeScreen()),
-          (route) => false, // clear back stack
+      MaterialPageRoute(builder: (_) => HomeScreen()),
+      (route) => false, // clear back stack
     );
   }
-  void _applyCompletionBonusAndShowWin() {    // Time bonus: up to 10 minutes (600s). Faster = more points.
+
+  void _applyCompletionBonusAndShowWin() {
+    // Time bonus: up to 10 minutes (600s). Faster = more points.
     int timeBonus = (600 - _elapsedSeconds).clamp(0, 600); // 0..600
     // Lives bonus: reward remaining chances
     int livesBonus = _remainingChances * 100;
@@ -292,36 +311,14 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
     // Base completion
     int base = 500;
 
-    int gained = ((base + timeBonus + livesBonus + cleanBonus) * _diffMult).round();
+    int gained = ((base + timeBonus + livesBonus + cleanBonus) * _diffMult)
+        .round();
 
     setState(() {
       _score += gained;
     });
 
-    // Show a simple win dialog
-    // showDialog(
-    //   context: context,
-    //   barrierDismissible: false
-    //   builder: (_) => AlertDialog(
-    //     title: const Text('You Win!'),
-    //     content: Text(
-    //       'Final Score: $_score\n'
-    //           'Time: $_formattedTime\n'
-    //           'Wrong Moves: $_wrongMoves\n'
-    //           'Hints Used: $_hintsUsed',
-    //     ),
-    //     actions: [
-    //       TextButton(
-    //         onPressed: () {
-    //           Navigator.of(context).pop();
-    //           // _startNewGame(); // implement to start a new puzzle
-    //         },
-    //         child: const Text('New Game'),
-    //       ),
-    //     ],
-    //   ),
-    // );
-    // submitHighScore(score: _score,timeMs: _elapsedSeconds);
+    submitHighScore(score: _score, timeMs: _elapsedSeconds);
 
     showDialog(
       context: context,
@@ -363,8 +360,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                 widthFactor: 0.9,
                 child: TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
-                    // _startNewGame(); // implement your new puzzle
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SudokuGameScreen()));// implement your new puzzle
                   },
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
@@ -374,28 +370,13 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('New Game', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'New Game',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              FractionallySizedBox(
-                widthFactor: 0.9,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    // _replaySamePuzzle(); // reset the SAME board to initial state
-                  },
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Replay Board', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
               const SizedBox(height: 8),
               FractionallySizedBox(
                 widthFactor: 0.9,
@@ -405,14 +386,17 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                     _goToMainMenu(); // optional: navigate to your menu screen
                   },
                   style: TextButton.styleFrom(
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor:Colors.green.shade600,
                     foregroundColor: Colors.black87,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Main Menu', style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Main Menu',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -420,59 +404,48 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
         ],
       ),
     );
-
   }
-
-
-
-
 
   // ====== UI ======
 
-
-
-
-
-// Show Game Over dialog
+  // Show Game Over dialog
   void showGameOverDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-            title: Center(
-               child: Text(
-               "Game Over!",
-               textAlign: TextAlign.center,
-               style: TextStyle(
-                 fontWeight: FontWeight.bold,
-                 fontSize: 24,
-                 color: Colors.blue.shade800, // Blue theme for title
-               ),
-             ),
-           ),
-           content: const Text(
-                   "You've used all your chances.",
-                   textAlign: TextAlign.center, // Center content
-                   style: TextStyle(
-                       fontSize: 18,
-                     color: Colors.black
-                   ),
-               ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Center(
+            child: Text(
+              "Game Over!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Colors.blue.shade800, // Blue theme for title
+              ),
+            ),
+          ),
+          content: const Text(
+            "You've used all your chances.",
+            textAlign: TextAlign.center, // Center content
+            style: TextStyle(fontSize: 18, color: Colors.black),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           actionsPadding: const EdgeInsets.all(10),
           actions: [
             Container(
               width: double.infinity,
-              child:
-              Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
 
                 children: [
                   FractionallySizedBox(
                     widthFactor: 0.9, // 80% of parent width
                     child: TextButton(
-                      onPressed: () =>_grantExtraChancesAndResume(4),
+                      onPressed: () => _grantExtraChancesAndResume(4),
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.grey.shade400,
                         foregroundColor: Colors.blue,
@@ -482,7 +455,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                         ),
                       ),
                       child: const Text(
-                          "Continue with 3 Chances",
+                        "Continue with 3 Chances",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -494,8 +467,7 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                   FractionallySizedBox(
                     widthFactor: 0.9, // 80% width
                     child: TextButton(
-                      onPressed: () {
-                      },
+                      onPressed: () {},
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.grey.shade400,
                         foregroundColor: Colors.blue,
@@ -540,16 +512,14 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                   ),
                 ],
               ),
-            )
+            ),
           ],
         );
       },
     );
   }
 
-
-
-// Optional: Reset the game
+  // Optional: Reset the game
   void _resetGame() {
     setState(() {
       _elapsedSeconds = 0;
@@ -580,36 +550,57 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Easy", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                    Text("Score: $_score", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    Text(_formattedTime, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Easy",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "Score: $_score",
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      _formattedTime,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Container(
                 child: Column(
-                    children: [
-                      // Display chances as a progress bar
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          children: [
-                            Text(
-                              "Remaining Chances: $_remainingChances",
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
+                  children: [
+                    // Display chances as a progress bar
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            "Remaining Chances: $_remainingChances",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                            LinearProgressIndicator(
-                              value: _progressValue,
-                              minHeight: 10,
-                              backgroundColor: Colors.grey.shade300,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.green),
+                          ),
+                          LinearProgressIndicator(
+                            value: _progressValue,
+                            minHeight: 10,
+                            backgroundColor: Colors.grey.shade300,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.green,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ]
+                    ),
+                  ],
                 ),
               ),
 
@@ -689,7 +680,8 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
                 if (_selRow != null && _selCol != null) {
                   if (r == _selRow && c == _selCol) {
                     bg = kSelected;
-                  } else if (r == _selRow || c == _selCol ||
+                  } else if (r == _selRow ||
+                      c == _selCol ||
                       _sameBlock(r, c, _selRow!, _selCol!)) {
                     bg = kHighlight;
                   }
@@ -734,10 +726,11 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
       ),
     );
   }
-// Helper method to generate a unique key for a cell
-//   String _key(int r, int c) => "$r-$c";
 
-// Highlight all conflicting cells in row, column, and 3x3 square
+  // Helper method to generate a unique key for a cell
+  //   String _key(int r, int c) => "$r-$c";
+
+  // Highlight all conflicting cells in row, column, and 3x3 square
   void _highlightConflicts(int row, int col, int wrongNumber) {
     _conflictCells.clear();
 
@@ -787,7 +780,8 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
               if (_isGiven[r][c] || _isLocked[r][c]) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text("Can't change a given or locked cell")),
+                    content: Text("Can't change a given or locked cell"),
+                  ),
                 );
                 return;
               }
@@ -849,6 +843,4 @@ class _SudokuGameScreenState extends State<SudokuGameScreen> {
       ),
     );
   }
-
 }
-

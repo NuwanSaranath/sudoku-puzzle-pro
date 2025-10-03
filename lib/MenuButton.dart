@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import './main.dart';
 
 class MenuButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
   final Color? backgroundOverride;
-  static const _disabledBtn = Color(0xFFBDBDBD); // Light Gray
+  static const _disabledBtn = Color(0xFFBDBDBD);
 
   const MenuButton({
     required this.icon,
@@ -14,12 +13,10 @@ class MenuButton extends StatelessWidget {
     required this.onPressed,
     this.backgroundOverride,
   });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bg = backgroundOverride ?? theme.colorScheme.primary;
-
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
