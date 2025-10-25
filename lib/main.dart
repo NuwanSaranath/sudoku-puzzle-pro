@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sudoku_x_pert/views/RegisterScreen.dart';
+import 'package:sudoku_x_pert/views/SudokuGameScreen.dart';
+import 'package:sudoku_x_pert/views/home_screen.dart';
+import 'package:sudoku_x_pert/views/widgets/menu_button.dart';
 import 'firebase_options.dart';
 import 'AuthGate.dart';
 import './SudokuGameScreen.dart';

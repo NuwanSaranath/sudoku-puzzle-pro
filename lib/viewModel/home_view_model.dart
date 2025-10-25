@@ -1,4 +1,4 @@
-// import '../model//user_model.dart';
+// import '../models//user_model.dart';
 //
 // class HomeViewModel {
 //   final UserModel _userModel = UserModel();

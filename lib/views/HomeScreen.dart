@@ -4,10 +4,10 @@
 // import 'package:flutter/services.dart' show HapticFeedback;
 //
 // import 'package:firebase_auth/firebase_auth.dart';
-// import './saveScore.dart';
+// import '../services/firestore_service.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 //
-// import './MenuButton.dart';
+// import '../MenuButton.dart';
 // import './SudokuGameScreen.dart';
 // import 'package:hive/hive.dart';
 //
